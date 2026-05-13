@@ -274,7 +274,7 @@
   <label>Dinero a invertir</label>
   <div class="input-wrap">
     <span class="input-prefix">$</span>
-    <input type="number" id="monto" placeholder="100000" min="0" oninput="recalcular()" />
+    <input type="text" id="monto" placeholder="100.000" inputmode="numeric" oninput="formatearMonto('monto'); recalcular()" />
   </div>
   <div class="chips" id="chips">
     <button class="chip" onclick="setMonto(10000)">$10K</button>
@@ -355,7 +355,7 @@
   <label>Ganancia deseada</label>
   <div class="input-wrap">
     <span class="input-prefix">$</span>
-    <input type="number" id="inv-ganancia" placeholder="10000" min="0" oninput="recalcularInversa()" />
+    <input type="text" id="inv-ganancia" placeholder="10.000" inputmode="numeric" oninput="formatearMonto('inv-ganancia'); recalcularInversa()" />
   </div>
 </div>
 
@@ -396,6 +396,17 @@
 <script>
   const USD = 1180;
 
+  function formatearMonto(id) {
+    const el = document.getElementById(id);
+    const raw = el.value.replace(/\./g, '').replace(/\D/g, '');
+    if (!raw) { el.value = ''; return; }
+    el.value = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(parseInt(raw));
+  }
+
+  function getRaw(id) {
+    return parseFloat(document.getElementById(id).value.replace(/\./g, '')) || 0;
+  }
+
   function fmtARS(n) {
     if (!n || isNaN(n)) return '$0';
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
@@ -421,7 +432,7 @@
   }
 
   function recalcular() {
-    const m = parseFloat(document.getElementById('monto').value) || 0;
+    const m = getRaw('monto');
     const d = parseInt(document.getElementById('dias').value) || 0;
     const t = parseFloat(document.getElementById('tna').value) || 0;
 
@@ -457,7 +468,7 @@
   }
 
   function recalcularInversa() {
-    const gd = parseFloat(document.getElementById('inv-ganancia').value) || 0;
+    const gd = getRaw('inv-ganancia');
     const d = parseInt(document.getElementById('inv-dias').value) || 0;
     const t = parseFloat(document.getElementById('inv-tna').value) || 0;
 
@@ -476,7 +487,7 @@
   }
 
   function setMonto(v) {
-    document.getElementById('monto').value = v;
+    document.getElementById('monto').value = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(v);
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
     event.target.classList.add('active');
     recalcular();
