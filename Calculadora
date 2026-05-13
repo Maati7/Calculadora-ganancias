@@ -1,0 +1,512 @@
+import { useState, useEffect, useRef } from “react”;
+
+const TNA_DEFAULT = 18.4;
+const USD_RATE = 1180; // ARS por USD aprox
+
+function formatARS(n) {
+if (isNaN(n)) return “$0”;
+return new Intl.NumberFormat(“es-AR”, {
+style: “currency”,
+currency: “ARS”,
+maximumFractionDigits: 0,
+}).format(n);
+}
+
+function formatUSD(n) {
+if (isNaN(n) || n === 0) return “$0 USD”;
+return (
+new Intl.NumberFormat(“es-AR”, { maximumFractionDigits: 0 }).format(
+n / USD_RATE
+) + “ USD”
+);
+}
+
+function calcular(monto, dias, tna) {
+const r = tna / 100;
+const diaria = monto * (r / 365);
+const anual = monto * r;
+const plazo = monto * (r / 365) * dias;
+const totalPlazo = monto + plazo;
+const totalAnual = monto + anual;
+return { diaria, anual, plazo, totalPlazo, totalAnual };
+}
+
+function calcularDesdeGanancia(gananciaDeseada, dias, tna) {
+const r = tna / 100;
+return gananciaDeseada / ((r / 365) * dias);
+}
+
+function AnimatedNumber({ value, prefix = “”, suffix = “”, decimals = 0 }) {
+const [display, setDisplay] = useState(0);
+const prev = useRef(0);
+const raf = useRef(null);
+
+useEffect(() => {
+const from = prev.current;
+const to = value;
+prev.current = to;
+const duration = 600;
+const start = performance.now();
+cancelAnimationFrame(raf.current);
+const step = (now) => {
+const p = Math.min((now - start) / duration, 1);
+const ease = 1 - Math.pow(1 - p, 3);
+setDisplay(from + (to - from) * ease);
+if (p < 1) raf.current = requestAnimationFrame(step);
+};
+raf.current = requestAnimationFrame(step);
+return () => cancelAnimationFrame(raf.current);
+}, [value]);
+
+const fmt = new Intl.NumberFormat(“es-AR”, {
+minimumFractionDigits: decimals,
+maximumFractionDigits: decimals,
+}).format(display);
+
+return (
+<span>
+{prefix}
+{fmt}
+{suffix}
+</span>
+);
+}
+
+const MONTOS_PREDEFINIDOS = [10000, 25000, 30000, 40000, 50000, 100000, 200000, 500000];
+
+export default function App() {
+const [monto, setMonto] = useState(””);
+const [dias, setDias] = useState(””);
+const [tna, setTna] = useState(TNA_DEFAULT);
+const [tab, setTab] = useState(“ganancia”); // ‘ganancia’ | ‘inversa’
+const [gananciaDeseada, setGananciaDeseada] = useState(””);
+
+const m = parseFloat(String(monto).replace(/./g, “”).replace(”,”, “.”)) || 0;
+const d = parseInt(dias) || 0;
+const t = parseFloat(tna) || 0;
+
+const res = calcular(m, d, t);
+const valid = m > 0 && d > 0 && t > 0;
+
+const gd = parseFloat(String(gananciaDeseada).replace(/./g, “”).replace(”,”, “.”)) || 0;
+const montoNecesario = gd > 0 && d > 0 && t > 0 ? calcularDesdeGanancia(gd, d, t) : 0;
+
+return (
+<div style={s.root}>
+<div style={s.blob1} />
+<div style={s.blob2} />
+
+```
+  <div style={s.card}>
+    {/* Header */}
+    <div style={s.header}>
+      <div style={s.logoRow}>
+        <div style={s.logoIcon}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 3v18h18" stroke="#009ee3" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M7 14l4-5 4 3 4-6" stroke="#009ee3" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <span style={s.logoText}>Calculadora MP</span>
+      </div>
+      <h1 style={s.title}>Calculá tus ganancias</h1>
+      <p style={s.sub}>Completá los campos para saber cuánto vas a tener en tu bolsillo</p>
+    </div>
+
+    {/* Tabs */}
+    <div style={s.tabs}>
+      <button
+        style={{ ...s.tab, ...(tab === "ganancia" ? s.tabActive : {}) }}
+        onClick={() => setTab("ganancia")}
+      >
+        💰 Ganancias
+      </button>
+      <button
+        style={{ ...s.tab, ...(tab === "inversa" ? s.tabActive : {}) }}
+        onClick={() => setTab("inversa")}
+      >
+        🎯 Desde ganancia
+      </button>
+    </div>
+
+    {tab === "ganancia" ? (
+      <>
+        {/* Inputs principales */}
+        <div style={s.inputs}>
+          {/* Monto */}
+          <div style={s.inputGroup}>
+            <label style={s.label}>Dinero a invertir</label>
+            <div style={s.inputRow}>
+              <span style={s.prefix}>$</span>
+              <input
+                type="number"
+                placeholder="100000"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+                style={s.input}
+                min="0"
+              />
+            </div>
+          </div>
+
+          {/* Montos predefinidos */}
+          <div style={s.chips}>
+            {MONTOS_PREDEFINIDOS.map((v) => (
+              <button
+                key={v}
+                style={{ ...s.chip, ...(m === v ? s.chipActive : {}) }}
+                onClick={() => setMonto(String(v))}
+              >
+                {v >= 1000
+                  ? "$" + (v >= 1000000 ? v / 1000000 + "M" : v / 1000 + "K")
+                  : "$" + v}
+              </button>
+            ))}
+          </div>
+
+          {/* Plazo */}
+          <div style={s.inputGroup}>
+            <label style={s.label}>
+              Plazo de inversión
+              {d > 0 && (
+                <span style={s.badge}>{d} día{d !== 1 ? "s" : ""}</span>
+              )}
+            </label>
+            <input
+              type="number"
+              placeholder="365"
+              value={dias}
+              onChange={(e) => setDias(e.target.value)}
+              style={{ ...s.input, paddingLeft: 16 }}
+              min="1"
+            />
+          </div>
+
+          {/* TNA */}
+          <div style={s.inputGroup}>
+            <label style={s.label}>
+              Rendimiento anual estimado (TNA)
+              <span style={s.badge}>{tna}%</span>
+            </label>
+            <div style={s.sliderWrap}>
+              <input
+                type="range"
+                min="1"
+                max="150"
+                step="0.1"
+                value={tna}
+                onChange={(e) => setTna(parseFloat(e.target.value))}
+                style={s.slider}
+              />
+              <div style={s.sliderLabels}>
+                <span>1%</span>
+                <span>150%</span>
+              </div>
+            </div>
+            <input
+              type="number"
+              placeholder="18.4"
+              value={tna}
+              onChange={(e) => setTna(parseFloat(e.target.value) || 0)}
+              style={{ ...s.input, paddingLeft: 16, marginTop: 8 }}
+              min="0"
+              max="999"
+              step="0.1"
+            />
+          </div>
+        </div>
+
+        {/* Resultados */}
+        <div style={s.results}>
+          <div style={s.resultsTitle}>📊 Ganancias!</div>
+
+          <div style={s.resultGrid}>
+            <div style={s.resultCard}>
+              <span style={s.rLabel}>Diaria</span>
+              <span style={s.rValue}>
+                <AnimatedNumber value={valid ? res.diaria : 0} prefix="$" decimals={0} />
+              </span>
+            </div>
+            <div style={{ ...s.resultCard, ...s.resultCardHL }}>
+              <span style={s.rLabel}>Al final del plazo</span>
+              <span style={{ ...s.rValue, color: "#009ee3", fontSize: 22 }}>
+                <AnimatedNumber value={valid ? res.plazo : 0} prefix="$" decimals={0} />
+              </span>
+              <span style={s.rSub}>
+                {valid ? formatUSD(res.plazo) : "$0 USD"}
+              </span>
+            </div>
+            <div style={s.resultCard}>
+              <span style={s.rLabel}>Anual</span>
+              <span style={s.rValue}>
+                <AnimatedNumber value={valid ? res.anual : 0} prefix="$" decimals={0} />
+              </span>
+              <span style={s.rSub}>{valid ? formatUSD(res.anual) : "$0 USD"}</span>
+            </div>
+          </div>
+
+          {valid && (
+            <div style={s.totalBox}>
+              <div style={s.totalRow}>
+                <span style={s.totalLabel}>Total al final del plazo</span>
+                <span style={s.totalVal}>
+                  <AnimatedNumber value={res.totalPlazo} prefix="$" decimals={0} />
+                </span>
+              </div>
+              <div style={s.totalSub}>{formatUSD(res.totalPlazo)}</div>
+              <div style={s.progressBar}>
+                <div
+                  style={{
+                    ...s.progressFill,
+                    width: `${Math.min((res.plazo / res.totalPlazo) * 100, 100).toFixed(1)}%`,
+                  }}
+                />
+              </div>
+              <div style={s.progressLabels}>
+                <span>Capital {formatARS(m)}</span>
+                <span style={{ color: "#009ee3" }}>
+                  Ganancia {formatARS(res.plazo)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    ) : (
+      /* Tab inversa */
+      <div style={s.inputs}>
+        <p style={s.inverseDesc}>
+          ¿Cuánto necesitás invertir para obtener una ganancia específica?
+        </p>
+
+        <div style={s.inputGroup}>
+          <label style={s.label}>Ganancia deseada</label>
+          <div style={s.inputRow}>
+            <span style={s.prefix}>$</span>
+            <input
+              type="number"
+              placeholder="10000"
+              value={gananciaDeseada}
+              onChange={(e) => setGananciaDeseada(e.target.value)}
+              style={s.input}
+              min="0"
+            />
+          </div>
+        </div>
+
+        <div style={s.inputGroup}>
+          <label style={s.label}>
+            Plazo de inversión
+            {d > 0 && <span style={s.badge}>{d} días</span>}
+          </label>
+          <input
+            type="number"
+            placeholder="365"
+            value={dias}
+            onChange={(e) => setDias(e.target.value)}
+            style={{ ...s.input, paddingLeft: 16 }}
+            min="1"
+          />
+        </div>
+
+        <div style={s.inputGroup}>
+          <label style={s.label}>
+            TNA estimada
+            <span style={s.badge}>{tna}%</span>
+          </label>
+          <div style={s.sliderWrap}>
+            <input
+              type="range"
+              min="1"
+              max="150"
+              step="0.1"
+              value={tna}
+              onChange={(e) => setTna(parseFloat(e.target.value))}
+              style={s.slider}
+            />
+            <div style={s.sliderLabels}>
+              <span>1%</span>
+              <span>150%</span>
+            </div>
+          </div>
+        </div>
+
+        {montoNecesario > 0 && (
+          <div style={{ ...s.totalBox, marginTop: 8 }}>
+            <div style={s.rLabel}>Necesitás invertir</div>
+            <div style={{ ...s.rValue, fontSize: 32, color: "#009ee3", margin: "8px 0" }}>
+              <AnimatedNumber value={montoNecesario} prefix="$" decimals={0} />
+            </div>
+            <div style={s.rSub}>{formatUSD(montoNecesario)}</div>
+            <div style={{ ...s.rSub, marginTop: 4 }}>
+              Para ganar {formatARS(gd)} en {d} días al {tna}% TNA
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    <p style={s.disclaimer}>
+      * Los cálculos son una estimación. La TNA varía día a día. TNA actual de MP: ~{TNA_DEFAULT}%
+    </p>
+  </div>
+</div>
+```
+
+);
+}
+
+const s = {
+root: {
+minHeight: “100vh”,
+background: “#f0f4f8”,
+display: “flex”,
+alignItems: “flex-start”,
+justifyContent: “center”,
+fontFamily: “‘DM Sans’, ‘Segoe UI’, sans-serif”,
+padding: “24px 16px 48px”,
+position: “relative”,
+},
+blob1: {
+position: “fixed”, top: 0, left: 0, right: 0, height: 280,
+background: “linear-gradient(160deg, #009ee3 0%, #00b1d2 50%, #f0f4f8 100%)”,
+zIndex: 0,
+},
+blob2: {
+position: “fixed”, bottom: 0, right: 0, width: 300, height: 300,
+borderRadius: “50%”,
+background: “radial-gradient(circle, rgba(0,158,227,0.08) 0%, transparent 70%)”,
+zIndex: 0,
+},
+card: {
+background: “#fff”,
+borderRadius: 24,
+padding: “28px 24px”,
+width: “100%”,
+maxWidth: 440,
+boxShadow: “0 8px 40px rgba(0,100,180,0.12)”,
+position: “relative”,
+zIndex: 1,
+marginTop: 12,
+},
+header: { marginBottom: 20 },
+logoRow: { display: “flex”, alignItems: “center”, gap: 8, marginBottom: 12 },
+logoIcon: {
+width: 36, height: 36, borderRadius: 10,
+background: “rgba(0,158,227,0.1)”,
+display: “flex”, alignItems: “center”, justifyContent: “center”,
+},
+logoText: { fontSize: 15, fontWeight: 700, color: “#009ee3” },
+title: { fontSize: 22, fontWeight: 800, color: “#1a2535”, margin: “0 0 4px”, letterSpacing: “-0.5px” },
+sub: { fontSize: 13, color: “#7a8a9a”, margin: 0 },
+
+tabs: {
+display: “flex”, gap: 8, marginBottom: 20,
+background: “#f0f4f8”, borderRadius: 12, padding: 4,
+},
+tab: {
+flex: 1, padding: “9px 8px”, borderRadius: 9, border: “none”,
+background: “transparent”, color: “#7a8a9a”, fontSize: 13,
+fontWeight: 600, cursor: “pointer”, fontFamily: “inherit”,
+transition: “all 0.15s”,
+},
+tabActive: {
+background: “#fff”, color: “#009ee3”,
+boxShadow: “0 2px 8px rgba(0,100,180,0.1)”,
+},
+
+inputs: { display: “flex”, flexDirection: “column”, gap: 16 },
+inputGroup: { display: “flex”, flexDirection: “column”, gap: 6 },
+label: {
+fontSize: 13, fontWeight: 600, color: “#3a4a5a”,
+display: “flex”, alignItems: “center”, gap: 8,
+},
+badge: {
+background: “rgba(0,158,227,0.1)”, color: “#009ee3”,
+fontSize: 11, fontWeight: 700, padding: “2px 8px”, borderRadius: 20,
+},
+inputRow: {
+display: “flex”, alignItems: “center”,
+border: “1.5px solid #e0e8f0”, borderRadius: 12,
+overflow: “hidden”, background: “#fafcff”,
+transition: “border-color 0.15s”,
+},
+prefix: {
+padding: “0 12px”, fontSize: 18, fontWeight: 700,
+color: “#009ee3”, borderRight: “1.5px solid #e0e8f0”,
+},
+input: {
+flex: 1, border: “1.5px solid #e0e8f0”, borderRadius: 12,
+outline: “none”, color: “#1a2535”, fontSize: 16,
+fontWeight: 600, padding: “13px 16px”, fontFamily: “inherit”,
+background: “#fafcff”, width: “100%”,
+},
+chips: { display: “flex”, flexWrap: “wrap”, gap: 6 },
+chip: {
+padding: “6px 12px”, borderRadius: 20, border: “1.5px solid #e0e8f0”,
+background: “#fafcff”, color: “#5a6a7a”, fontSize: 13,
+fontWeight: 600, cursor: “pointer”, fontFamily: “inherit”,
+transition: “all 0.15s”,
+},
+chipActive: {
+background: “#009ee3”, color: “#fff”, borderColor: “#009ee3”,
+},
+sliderWrap: { display: “flex”, flexDirection: “column”, gap: 2 },
+slider: { width: “100%”, accentColor: “#009ee3”, cursor: “pointer” },
+sliderLabels: {
+display: “flex”, justifyContent: “space-between”,
+fontSize: 11, color: “#9aabb8”,
+},
+
+results: {
+marginTop: 24, display: “flex”, flexDirection: “column”, gap: 12,
+},
+resultsTitle: {
+fontSize: 16, fontWeight: 700, color: “#1a2535”,
+},
+resultGrid: {
+display: “grid”, gridTemplateColumns: “1fr 1fr 1fr”, gap: 8,
+},
+resultCard: {
+background: “#f8fafc”, borderRadius: 14, padding: “14px 10px”,
+display: “flex”, flexDirection: “column”, gap: 4,
+border: “1.5px solid #e8f0f8”,
+},
+resultCardHL: {
+background: “linear-gradient(135deg, #e8f6fd 0%, #d0edf9 100%)”,
+borderColor: “#009ee3”,
+},
+rLabel: { fontSize: 11, fontWeight: 600, color: “#8a9aaa”, textTransform: “uppercase”, letterSpacing: “0.3px” },
+rValue: { fontSize: 17, fontWeight: 800, color: “#1a2535”, letterSpacing: “-0.3px” },
+rSub: { fontSize: 11, color: “#8a9aaa”, fontWeight: 500 },
+
+totalBox: {
+background: “linear-gradient(135deg, #f0f8ff 0%, #e4f3fc 100%)”,
+border: “1.5px solid #c0dff0”,
+borderRadius: 16, padding: “18px”,
+},
+totalRow: { display: “flex”, justifyContent: “space-between”, alignItems: “center” },
+totalLabel: { fontSize: 13, fontWeight: 600, color: “#5a6a7a” },
+totalVal: { fontSize: 20, fontWeight: 800, color: “#1a2535”, letterSpacing: “-0.5px” },
+totalSub: { fontSize: 12, color: “#8a9aaa”, marginTop: 2, textAlign: “right” },
+progressBar: {
+height: 8, borderRadius: 4, background: “#d0e8f8”,
+marginTop: 12, overflow: “hidden”,
+},
+progressFill: {
+height: “100%”, borderRadius: 4,
+background: “linear-gradient(90deg, #009ee3, #00c8f0)”,
+transition: “width 0.6s cubic-bezier(0.4,0,0.2,1)”,
+},
+progressLabels: {
+display: “flex”, justifyContent: “space-between”,
+fontSize: 11, color: “#8a9aaa”, marginTop: 6, fontWeight: 500,
+},
+
+inverseDesc: { fontSize: 14, color: “#5a6a7a”, margin: 0, lineHeight: 1.5 },
+
+disclaimer: {
+fontSize: 11, color: “#aabbcc”, textAlign: “center”,
+marginTop: 20, marginBottom: 0, lineHeight: 1.5,
+},
+};
